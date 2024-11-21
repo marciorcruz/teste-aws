@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: SAM template to create EventBridge, SQS and Lambda in Golang.
+
+Resources:
+  LambdaHelloWorldExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowPutEvents
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "events:PutEvents"
+                Resource: "*"
+        - PolicyName: AllowSQSPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt MySQSQueue.Arn
+        - PolicyName: AllowLambdaToWriteLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+    
+  CloudWatchLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/eventbridge/logs-meu-teste"
+      RetentionInDays: 1
+  
+  EventBridgeBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: LambdaHelloBus
+
+  MySQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: LambdaSQSQueue
+  
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: .
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures: [arm64]
+      ## TUDO NOVO A PARTIR DAQUI
+      Role: !GetAtt LambdaHelloWorldExecutionRole.Arn
+      Policies:
+        - AWSLambdaSQSQueueExecutionRole
+      Environment:
+        Variables:
+          QUEUE_NAME: !Ref MySQSQueue
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MySQSQueue.Arn
+
+
+Outputs:
+  EventBusName:
+    Value: !Ref EventBridgeBus
+  SQSQueueName:
+    Value: !Ref MySQSQueue
+  LambdaFunctionName:
+    Value: !Ref HelloWorldFunction
