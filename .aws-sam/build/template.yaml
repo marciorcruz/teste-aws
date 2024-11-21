@@ -57,7 +57,7 @@ Resources:
         Ref: EventBridgeBus
       EventPattern:
         source:
-        - my.sqs.lambda
+        - my.lambda
       State: ENABLED
       Targets:
       - Id: CloudWatchLogsTarget
