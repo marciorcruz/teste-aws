@@ -46,8 +46,25 @@ Resources:
   CloudWatchLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /eventbridge/logs-meu-teste
+      LogGroupName: /eventbridge/logs
       RetentionInDays: 1
+  EventBridgeToCloudWatchRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: SendAllToCloudWatch
+      Description: Envia todos os eventos do MyEventBus para o CloudWatch Logs
+      EventBusName:
+        Ref: EventBridgeBus
+      EventPattern:
+        source:
+        - my.sqs.lambda
+      State: ENABLED
+      Targets:
+      - Id: CloudWatchLogsTarget
+        Arn:
+          Fn::GetAtt:
+          - CloudWatchLogGroup
+          - Arn
   EventBridgeBus:
     Type: AWS::Events::EventBus
     Properties:
@@ -95,3 +112,6 @@ Outputs:
   LambdaFunctionName:
     Value:
       Ref: HelloWorldFunction
+  CloudWatchLogGroupName:
+    Value:
+      Ref: CloudWatchLogGroup
